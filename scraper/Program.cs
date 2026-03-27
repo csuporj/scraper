@@ -3,13 +3,13 @@ using System.Xml.Linq;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 
-// Using .NET 10 Primary Constructor to handle initialization and non-nullability
 public class AlbumInfo(string linkText, string albumUrl)
 {
     public string LinkText { get; set; } = linkText;
     public string AlbumUrl { get; set; } = albumUrl;
     public string AlbumDate { get; set; } = "Not Scraped";
     public string ThumbnailUrl { get; set; } = "";
+    public string? LocalThumbnailPath { get; set; }
 }
 
 class Program
@@ -17,34 +17,87 @@ class Program
     static async Task Main()
     {
         const string blogUrl = "https://csuporj.blogspot.com";
+        const string jsonPath = "albums.json";
+        const string thumbFolder = "thumbnails";
         string rssUrl = $"{blogUrl}/feeds/posts/default?alt=rss&max-results=500";
 
-        Console.WriteLine("Step 1: Fetching links from RSS...");
-        var allAlbums = await GetAlbums(rssUrl);
+        Directory.CreateDirectory(thumbFolder);
 
-        // Take 3 for deep scraping
-        var top3 = allAlbums.Take(3).ToList();
-
-        using HttpClient client = new();
-        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-        Console.WriteLine("Step 2: Scraping metadata for the first 3...");
-        foreach (var item in top3)
+        // 1. Read existing local data
+        var localCache = new Dictionary<string, AlbumInfo>();
+        if (File.Exists(jsonPath))
         {
-            var (date, thumb) = await GetAlbumMetadata(client, item.AlbumUrl);
-            item.AlbumDate = date;
-            item.ThumbnailUrl = thumb;
-            Console.WriteLine($"Processed: {item.LinkText} -> {item.AlbumDate}");
+            try
+            {
+                var jsonContent = await File.ReadAllTextAsync(jsonPath);
+                var doc = JsonDocument.Parse(jsonContent);
+                var albums = JsonSerializer.Deserialize<List<AlbumInfo>>(doc.RootElement.GetProperty("Albums").GetRawText());
+                if (albums != null) localCache = albums.ToDictionary(a => a.AlbumUrl, a => a);
+            }
+            catch { Console.WriteLine("Existing JSON not found or invalid. Starting fresh."); }
         }
 
-        // Combine everything (top 3 with data + the rest)
-        var finalData = top3.Concat(allAlbums.Skip(3)).ToList();
+        // 2. Fetch latest RSS (Source of Truth for Order)
+        Console.WriteLine("Fetching RSS feed...");
+        var feedAlbums = await GetAlbumsFromFeed(rssUrl);
 
-        var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
-        string jsonOutput = JsonSerializer.Serialize(new { Blog = blogUrl, Albums = finalData }, jsonOptions);
+        // 3. Sync Feed Order with Local Data
+        var finalOrderedList = new List<AlbumInfo>();
+        foreach (var item in feedAlbums)
+        {
+            if (localCache.TryGetValue(item.AlbumUrl, out var existing))
+            {
+                existing.LinkText = item.LinkText; // Sync text update
+                finalOrderedList.Add(existing);
+            }
+            else
+            {
+                finalOrderedList.Add(item);
+            }
+        }
 
-        await File.WriteAllTextAsync("albums.json", jsonOutput);
-        Console.WriteLine("\nSuccess! Results saved to albums.json");
+        // 4. Bulk Scrape: Identify first 100 missing data
+        var missingData = finalOrderedList
+            .Where(a => string.IsNullOrEmpty(a.ThumbnailUrl) || a.AlbumDate == "Not Scraped")
+            .Take(100) // CHANGED FROM 3 TO 100
+            .ToList();
+
+        if (missingData.Count > 0)
+        {
+            Console.WriteLine($"Bulk scraping {missingData.Count} albums...");
+            using HttpClient client = new();
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+
+            foreach (var item in missingData)
+            {
+                var (date, thumbUrl) = await GetAlbumMetadata(client, item.AlbumUrl);
+                item.AlbumDate = date;
+                item.ThumbnailUrl = thumbUrl;
+
+                if (!string.IsNullOrEmpty(thumbUrl))
+                {
+                    string fileName = $"thumb_{Guid.NewGuid():N}.jpg";
+                    string fullPath = Path.Combine(thumbFolder, fileName);
+                    try
+                    {
+                        var bytes = await client.GetByteArrayAsync(thumbUrl);
+                        await File.WriteAllBytesAsync(fullPath, bytes);
+                        item.LocalThumbnailPath = fullPath;
+                    }
+                    catch { Console.WriteLine($"Failed thumb download: {item.LinkText}"); }
+                }
+
+                Console.WriteLine($"Updated: {item.LinkText} -> {date}");
+
+                // Small delay to be polite to Google's servers
+                await Task.Delay(200);
+            }
+        }
+
+        // 5. Final Save
+        var output = new { Blog = blogUrl, Albums = finalOrderedList };
+        await File.WriteAllTextAsync(jsonPath, JsonSerializer.Serialize(output, new JsonSerializerOptions { WriteIndented = true }));
+        Console.WriteLine($"\nProcess finished. Total albums in list: {finalOrderedList.Count}");
     }
 
     static async Task<(string date, string thumb)> GetAlbumMetadata(HttpClient client, string url)
@@ -55,26 +108,21 @@ class Program
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
 
-            // Thumbnail
-            var metaImage = doc.DocumentNode.SelectSingleNode("//meta[@property='og:image']");
-            string thumb = metaImage?.GetAttributeValue("content", "") ?? "";
-
-            // Date logic
+            string thumb = doc.DocumentNode.SelectSingleNode("//meta[@property='og:image']")?.GetAttributeValue("content", "") ?? "";
             string dateStr = "Date Not Found";
-            var metaTitle = doc.DocumentNode.SelectSingleNode("//meta[@property='og:title']");
-            if (metaTitle is { } titleNode)
+
+            if (doc.DocumentNode.SelectSingleNode("//meta[@property='og:title']") is { } node)
             {
-                string content = titleNode.GetAttributeValue("content", "");
-                var dateMatch = Regex.Match(content, @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b", RegexOptions.IgnoreCase);
-                if (dateMatch.Success)
+                string content = node.GetAttributeValue("content", "");
+                var match = Regex.Match(content, @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b", RegexOptions.IgnoreCase);
+                if (match.Success)
                 {
-                    dateStr = dateMatch.Value;
-                    if (!Regex.IsMatch(content, @"\b\d{4}\b"))
-                        dateStr = $"{dateStr}, {DateTime.Now.Year}";
+                    dateStr = match.Value;
+                    if (!Regex.IsMatch(content, @"\b\d{4}\b")) dateStr += $", {DateTime.Now.Year}";
                     else
                     {
-                        var fullDate = Regex.Match(content, @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b", RegexOptions.IgnoreCase);
-                        if (fullDate.Success) dateStr = fullDate.Value;
+                        var full = Regex.Match(content, @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b", RegexOptions.IgnoreCase);
+                        if (full.Success) dateStr = full.Value;
                     }
                 }
             }
@@ -83,25 +131,21 @@ class Program
         catch { return ("Error", ""); }
     }
 
-    static async Task<List<AlbumInfo>> GetAlbums(string url)
+    static async Task<List<AlbumInfo>> GetAlbumsFromFeed(string url)
     {
         var list = new List<AlbumInfo>();
         var seen = new HashSet<string>();
         using HttpClient client = new();
         client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
-
         try
         {
-            string xml = await client.GetStringAsync(url);
-            XDocument doc = XDocument.Parse(xml);
+            XDocument doc = XDocument.Parse(await client.GetStringAsync(url));
             foreach (var item in doc.Descendants("item"))
             {
-                string content = item.Element("description")?.Value ?? "";
                 var htmlDoc = new HtmlDocument();
-                htmlDoc.LoadHtml(content);
+                htmlDoc.LoadHtml(item.Element("description")?.Value ?? "");
                 var nodes = htmlDoc.DocumentNode.SelectNodes("//a[contains(@href, 'photos.app.goo.gl') or contains(@href, 'photos.google.com')]");
-
-                if (nodes is not null)
+                if (nodes != null)
                 {
                     foreach (var link in nodes)
                     {
