@@ -8,13 +8,13 @@
         private static AlbumInfo Merge(AlbumInfo rss, AlbumInfo? json)
         {
             AlbumInfo merged = new(rss.LinkText, rss.AlbumUrl);
-            
+
             if (json != null)
             {
                 merged.AlbumDate = json.AlbumDate;
                 merged.LocalThumbnailPath = json.LocalThumbnailPath;
             }
-            
+
             return merged;
         }
     }

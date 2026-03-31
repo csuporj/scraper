@@ -13,30 +13,30 @@
             {
                 return;
             }
-            
+
             Logger.Log($"Bulk scraping {missingAlbums.Count} albums...");
             using HttpClient client = new();
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
 
             foreach (AlbumInfo item in missingAlbums)
             {
-                (string? date, string? thumbUrl) = await RssParser.GetAlbum(item.AlbumUrl, client);
-                await FillInfo(item, date, thumbUrl, client);
+                (string? date, string? thumbnailUrl) = await RssParser.GetAlbum(item.AlbumUrl, client);
+                await FillInfo(item, date, thumbnailUrl, client);
             }
         }
 
-        private static async Task FillInfo(AlbumInfo album, string date, string thumbUrl, HttpClient client)
+        private static async Task FillInfo(AlbumInfo album, string date, string thumbnailUrl, HttpClient client)
         {
             album.AlbumDate = date;
-            album.ThumbnailUrl = thumbUrl;
+            album.ThumbnailUrl = thumbnailUrl;
 
-            if (!string.IsNullOrEmpty(thumbUrl))
+            if (!string.IsNullOrEmpty(thumbnailUrl))
             {
                 string fileName = $"thumb_{Guid.NewGuid():N}.jpg";
                 string fullPath = Path.Combine(Settings.ThumbnailsFolder, fileName);
                 try
                 {
-                    byte[] bytes = await client.GetByteArrayAsync(thumbUrl);
+                    byte[] bytes = await client.GetByteArrayAsync(thumbnailUrl);
                     await File.WriteAllBytesAsync(fullPath, bytes);
                     album.LocalThumbnailPath = fullPath;
                 }

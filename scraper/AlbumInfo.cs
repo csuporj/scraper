@@ -7,14 +7,14 @@ namespace scraper
         public const string NotScraped = "Not Scraped";
 
         public string LinkText { get; set; } = linkText;
-        
+
         public string AlbumUrl { get; set; } = albumUrl;
-        
+
         public string AlbumDate { get; set; } = NotScraped;
-        
+
         [JsonIgnore]
         public string ThumbnailUrl { get; set; } = "";
-        
+
         public string LocalThumbnailPath { get; set; } = "";
     }
 }

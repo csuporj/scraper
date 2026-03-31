@@ -10,11 +10,11 @@ namespace scraper
         {
             Logger.Log("Fetching RSS feed...");
 
-            List<AlbumInfo> albums = new();
-            HashSet<string> seenAlbums = new();
+            List<AlbumInfo> albums = [];
+            HashSet<string> seenAlbums = [];
             using HttpClient client = new();
             client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
-            
+
             try
             {
                 XDocument rss = XDocument.Parse(await client.GetStringAsync(Settings.RssUrl));
@@ -27,7 +27,7 @@ namespace scraper
             {
                 Logger.Log(ex.Message);
             }
-            
+
             return albums;
         }
 
@@ -70,9 +70,9 @@ namespace scraper
                 HtmlNode imageNode = doc.DocumentNode.SelectSingleNode(imageXmlPath);
 
                 string dateStr = GetDate(titleNode);
-                string thumb = imageNode?.GetAttributeValue("content", "") ?? "";
+                string thumbnailUrl = imageNode?.GetAttributeValue("content", "") ?? "";
 
-                return (dateStr, thumb);
+                return (dateStr, thumbnailUrl);
             }
             catch (Exception ex)
             {
