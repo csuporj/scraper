@@ -18,9 +18,9 @@
             using HttpClient client = new();
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
 
-            foreach (var item in missingAlbums)
+            foreach (AlbumInfo item in missingAlbums)
             {
-                var (date, thumbUrl) = await RssParser.GetAlbum(item.AlbumUrl, client);
+                (string? date, string? thumbUrl) = await RssParser.GetAlbum(item.AlbumUrl, client);
                 await FillInfo(item, date, thumbUrl, client);
             }
         }
@@ -36,7 +36,7 @@
                 string fullPath = Path.Combine(Settings.ThumbnailsFolder, fileName);
                 try
                 {
-                    var bytes = await client.GetByteArrayAsync(thumbUrl);
+                    byte[] bytes = await client.GetByteArrayAsync(thumbUrl);
                     await File.WriteAllBytesAsync(fullPath, bytes);
                     album.LocalThumbnailPath = fullPath;
                 }

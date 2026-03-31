@@ -10,15 +10,15 @@ namespace scraper
         {
             Logger.Log("Fetching RSS feed...");
 
-            var albums = new List<AlbumInfo>();
-            var seenAlbums = new HashSet<string>();
+            List<AlbumInfo> albums = new();
+            HashSet<string> seenAlbums = new();
             using HttpClient client = new();
             client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
             
             try
             {
                 XDocument rss = XDocument.Parse(await client.GetStringAsync(Settings.RssUrl));
-                foreach (var rssItem in rss.Descendants("item"))
+                foreach (XElement rssItem in rss.Descendants("item"))
                 {
                     GetAlbums(albums, seenAlbums, rssItem);
                 }
@@ -33,16 +33,16 @@ namespace scraper
 
         private static void GetAlbums(List<AlbumInfo> albums, HashSet<string> seen, XElement rssItem)
         {
-            const string hrefPattern =
+            const string linkPattern =
                 "//a[contains(@href, 'photos.app.goo.gl') or contains(@href, 'photos.google.com') or contains(@href, 'goo.gl/photos')]";
 
-            var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(rssItem.Element("description")?.Value ?? "");
-            HtmlNodeCollection nodes = htmlDoc.DocumentNode.SelectNodes(hrefPattern);
+            HtmlDocument html = new();
+            html.LoadHtml(rssItem.Element("description")?.Value ?? "");
+            HtmlNodeCollection links = html.DocumentNode.SelectNodes(linkPattern);
 
-            if (nodes != null)
+            if (links != null)
             {
-                foreach (var link in nodes)
+                foreach (HtmlNode link in links)
                 {
                     string href = link.GetAttributeValue("href", "").Trim();
                     string text = HtmlEntity.DeEntitize(link.InnerText).Trim();
@@ -63,7 +63,7 @@ namespace scraper
             try
             {
                 string html = await client.GetStringAsync(albumUrl);
-                var doc = new HtmlDocument();
+                HtmlDocument doc = new();
                 doc.LoadHtml(html);
 
                 HtmlNode titleNode = doc.DocumentNode.SelectSingleNode(titleXmlPath);
@@ -92,13 +92,13 @@ namespace scraper
 
             string title = titleNode.GetAttributeValue("content", "");
 
-            var mdyMatch = MonthDayYearRegex().Match(title);
+            Match mdyMatch = MonthDayYearRegex().Match(title);
             if (mdyMatch.Success)
             {
                 return mdyMatch.Value;
             }
 
-            var mdMatch = MonthDayRegex().Match(title);
+            Match mdMatch = MonthDayRegex().Match(title);
             if (mdMatch.Success)
             {
                 return $"{mdMatch.Value}, {DateTime.Now.Year}";

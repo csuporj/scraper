@@ -7,7 +7,7 @@
 
         private static AlbumInfo Merge(AlbumInfo rss, AlbumInfo? json)
         {
-            var merged = new AlbumInfo(rss.LinkText, rss.AlbumUrl);
+            AlbumInfo merged = new(rss.LinkText, rss.AlbumUrl);
             
             if (json != null)
             {
