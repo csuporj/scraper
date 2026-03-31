@@ -1,7 +1,7 @@
-﻿using System.Text.Json;
-using System.Xml.Linq;
+﻿using System.Xml.Linq;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using Newtonsoft.Json;
 
 public class AlbumInfo(string linkText, string albumUrl)
 {
@@ -9,66 +9,36 @@ public class AlbumInfo(string linkText, string albumUrl)
     public string AlbumUrl { get; set; } = albumUrl;
     public string AlbumDate { get; set; } = "Not Scraped";
     public string ThumbnailUrl { get; set; } = "";
-    public string? LocalThumbnailPath { get; set; }
+    public string LocalThumbnailPath { get; set; } = "";
 }
 
-class Program
+public class Program
 {
-    static async Task Main()
+    private const string RssUrl = "https://csuporj.blogspot.com/feeds/posts/default?alt=rss&max-results=500";
+    private const string JsonPath = "albums.json";
+    private const string ThumbFolder = "thumbnails";
+    private const int BatchSize = 5;
+    
+    private static async Task Main()
     {
-        const string blogUrl = "https://csuporj.blogspot.com";
-        const string jsonPath = "albums.json";
-        const string thumbFolder = "thumbnails";
-        string rssUrl = $"{blogUrl}/feeds/posts/default?alt=rss&max-results=500";
 
-        Directory.CreateDirectory(thumbFolder);
+        Directory.CreateDirectory(ThumbFolder);
+        Dictionary<string, AlbumInfo> localAlbums = ReadJson(JsonPath);
+        List<AlbumInfo> feedAlbums = await GetAlbumsFromFeed(RssUrl);
+        List<AlbumInfo> mergedAlbums = MergeJsonWithRss(localAlbums, feedAlbums);
 
-        // 1. Read existing local data
-        var localCache = new Dictionary<string, AlbumInfo>();
-        if (File.Exists(jsonPath))
-        {
-            try
-            {
-                var jsonContent = await File.ReadAllTextAsync(jsonPath);
-                var doc = JsonDocument.Parse(jsonContent);
-                var albums = JsonSerializer.Deserialize<List<AlbumInfo>>(doc.RootElement.GetProperty("Albums").GetRawText());
-                if (albums != null) localCache = albums.ToDictionary(a => a.AlbumUrl, a => a);
-            }
-            catch { Console.WriteLine("Existing JSON not found or invalid. Starting fresh."); }
-        }
-
-        // 2. Fetch latest RSS (Source of Truth for Order)
-        Console.WriteLine("Fetching RSS feed...");
-        var feedAlbums = await GetAlbumsFromFeed(rssUrl);
-
-        // 3. Sync Feed Order with Local Data
-        var finalOrderedList = new List<AlbumInfo>();
-        foreach (var item in feedAlbums)
-        {
-            if (localCache.TryGetValue(item.AlbumUrl, out var existing))
-            {
-                existing.LinkText = item.LinkText; // Sync text update
-                finalOrderedList.Add(existing);
-            }
-            else
-            {
-                finalOrderedList.Add(item);
-            }
-        }
-
-        // 4. Bulk Scrape: Identify first 100 missing data
-        var missingData = finalOrderedList
+         var missingAlbums = mergedAlbums
             .Where(a => string.IsNullOrEmpty(a.ThumbnailUrl) || a.AlbumDate == "Not Scraped")
-            .Take(100) // CHANGED FROM 3 TO 100
+            .Take(BatchSize)
             .ToList();
 
-        if (missingData.Count > 0)
+        if (missingAlbums.Count > 0)
         {
-            Console.WriteLine($"Bulk scraping {missingData.Count} albums...");
+            Console.WriteLine($"Bulk scraping {missingAlbums.Count} albums...");
             using HttpClient client = new();
             client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
 
-            foreach (var item in missingData)
+            foreach (var item in missingAlbums)
             {
                 var (date, thumbUrl) = await GetAlbumMetadata(client, item.AlbumUrl);
                 item.AlbumDate = date;
@@ -77,7 +47,7 @@ class Program
                 if (!string.IsNullOrEmpty(thumbUrl))
                 {
                     string fileName = $"thumb_{Guid.NewGuid():N}.jpg";
-                    string fullPath = Path.Combine(thumbFolder, fileName);
+                    string fullPath = Path.Combine(ThumbFolder, fileName);
                     try
                     {
                         var bytes = await client.GetByteArrayAsync(thumbUrl);
@@ -89,50 +59,39 @@ class Program
 
                 Console.WriteLine($"Updated: {item.LinkText} -> {date}");
 
-                // Small delay to be polite to Google's servers
+                // don't get blocked by google
                 await Task.Delay(200);
             }
         }
 
         // 5. Final Save
-        var output = new { Blog = blogUrl, Albums = finalOrderedList };
-        await File.WriteAllTextAsync(jsonPath, JsonSerializer.Serialize(output, new JsonSerializerOptions { WriteIndented = true }));
-        Console.WriteLine($"\nProcess finished. Total albums in list: {finalOrderedList.Count}");
+        var output = JsonConvert.SerializeObject(mergedAlbums, Formatting.Indented);
+        await File.WriteAllTextAsync(JsonPath, output);
+        Console.WriteLine($"\nProcess finished. Total albums in list: {mergedAlbums.Count}");
     }
 
-    static async Task<(string date, string thumb)> GetAlbumMetadata(HttpClient client, string url)
+    private static Dictionary<string, AlbumInfo> ReadJson(string jsonPath)
     {
-        try
+        var localCache = new Dictionary<string, AlbumInfo>();
+        if (File.Exists(jsonPath))
         {
-            string html = await client.GetStringAsync(url);
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-
-            string thumb = doc.DocumentNode.SelectSingleNode("//meta[@property='og:image']")?.GetAttributeValue("content", "") ?? "";
-            string dateStr = "Date Not Found";
-
-            if (doc.DocumentNode.SelectSingleNode("//meta[@property='og:title']") is { } node)
+            try
             {
-                string content = node.GetAttributeValue("content", "");
-                var match = Regex.Match(content, @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b", RegexOptions.IgnoreCase);
-                if (match.Success)
-                {
-                    dateStr = match.Value;
-                    if (!Regex.IsMatch(content, @"\b\d{4}\b")) dateStr += $", {DateTime.Now.Year}";
-                    else
-                    {
-                        var full = Regex.Match(content, @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b", RegexOptions.IgnoreCase);
-                        if (full.Success) dateStr = full.Value;
-                    }
-                }
+                var json = File.ReadAllText(jsonPath);
+                var albums = JsonConvert.DeserializeObject<AlbumInfo[]>(json);
+                if (albums != null)
+                    localCache = albums.ToDictionary(a => a.AlbumUrl, a => a);
             }
-            return (dateStr, thumb);
+            catch { Console.WriteLine("Existing JSON not found or invalid. Starting fresh."); }
         }
-        catch { return ("Error", ""); }
+
+        return localCache;
     }
 
-    static async Task<List<AlbumInfo>> GetAlbumsFromFeed(string url)
+    private static async Task<List<AlbumInfo>> GetAlbumsFromFeed(string url)
     {
+        Console.WriteLine("Fetching RSS feed...");
+
         var list = new List<AlbumInfo>();
         var seen = new HashSet<string>();
         using HttpClient client = new();
@@ -159,5 +118,62 @@ class Program
         }
         catch { }
         return list;
+    }
+
+    private static List<AlbumInfo> MergeJsonWithRss(Dictionary<string, AlbumInfo> localList, List<AlbumInfo> feedList)
+    {
+        var mergedList = new List<AlbumInfo>();
+        foreach (var feedAlbum in feedList)
+        {
+            if (localList.TryGetValue(feedAlbum.AlbumUrl, out var localAlbum))
+            {
+                localAlbum.LinkText = feedAlbum.LinkText;
+                mergedList.Add(localAlbum);
+            }
+            else
+            {
+                mergedList.Add(feedAlbum);
+            }
+        }
+
+        return mergedList;
+    }
+
+    private static async Task<(string date, string thumb)> GetAlbumMetadata(HttpClient client, string url)
+    {
+        const string imageNodePath = "//meta[@property='og:image']";
+        const string titleNodePath = "//meta[@property='og:title']";
+        const string yearPattern = @"\b\d{4}\b";
+        const string monthDayPattern = @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b";
+        const string monthDayYearPattern = @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b";
+        
+        
+        try
+        {
+            string html = await client.GetStringAsync(url);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            string thumb = doc.DocumentNode.SelectSingleNode(imageNodePath)?.GetAttributeValue("content", "") ?? "";
+            string dateStr = "Date Not Found";
+
+            if (doc.DocumentNode.SelectSingleNode(titleNodePath) is { } node)
+            {
+                string content = node.GetAttributeValue("content", "");
+                var match = Regex.Match(content, monthDayPattern, RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    dateStr = match.Value;
+                    if (!Regex.IsMatch(content, yearPattern)) dateStr += $", {DateTime.Now.Year}";
+                    else
+                    {
+                        var full = Regex.Match(content, monthDayYearPattern, RegexOptions.IgnoreCase);
+                        if (full.Success) dateStr = full.Value;
+                    }
+                }
+            }
+            return (dateStr, thumb);
+        }
+        catch { return ("Error", ""); }
     }
 }
