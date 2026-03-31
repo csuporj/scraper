@@ -8,12 +8,16 @@ namespace scraper
     {
         public static async Task<List<AlbumInfo>> GetAlbumsFromRss(string url)
         {
+            const string hrefPattern =
+                "//a[contains(@href, 'photos.app.goo.gl') or contains(@href, 'photos.google.com') or contains(@href, 'goo.gl/photos')]";
+
             Console.WriteLine("Fetching RSS feed...");
 
             var list = new List<AlbumInfo>();
             var seen = new HashSet<string>();
             using HttpClient client = new();
             client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+            
             try
             {
                 XDocument doc = XDocument.Parse(await client.GetStringAsync(url));
@@ -21,23 +25,26 @@ namespace scraper
                 {
                     var htmlDoc = new HtmlDocument();
                     htmlDoc.LoadHtml(item.Element("description")?.Value ?? "");
-                    var nodes = htmlDoc.DocumentNode.SelectNodes("//a[contains(@href, 'photos.app.goo.gl') or contains(@href, 'photos.google.com')]");
+                    HtmlNodeCollection nodes = htmlDoc.DocumentNode.SelectNodes(hrefPattern);
+                    
                     if (nodes != null)
                     {
                         foreach (var link in nodes)
                         {
                             string href = link.GetAttributeValue("href", "").Trim();
                             string text = HtmlEntity.DeEntitize(link.InnerText).Trim();
-                            if (!string.IsNullOrEmpty(href) && seen.Add(href))
+                            if (!string.IsNullOrEmpty(href) && !seen.Contains(href))
                             {
+                                seen.Add(href);
                                 list.Add(new AlbumInfo(text, href));
                             }
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
             }
             
             return list;
@@ -62,8 +69,9 @@ namespace scraper
 
                 return (dateStr, thumb);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return ("Error", "");
             }
         }

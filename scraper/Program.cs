@@ -72,8 +72,9 @@ namespace scraper
                     if (albums != null)
                         localCache = albums.ToDictionary(a => a.AlbumUrl, a => a);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Console.WriteLine(ex.Message);
                     Console.WriteLine("Existing JSON not found or invalid. Starting fresh.");
                 }
             }
