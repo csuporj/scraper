@@ -53,7 +53,7 @@
         private static List<AlbumInfo> GetMissingAlbums(List<AlbumInfo> mergedAlbums)
         {
             return [.. mergedAlbums
-                .Where(a => string.IsNullOrEmpty(a.ThumbnailFileName) || a.AlbumDate == AlbumInfo.NotScraped)
+                .Where(a => string.IsNullOrEmpty(a.ThumbnailFileName))
                .Take(Settings.BatchSize)];
         }
     }
