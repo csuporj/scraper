@@ -6,40 +6,21 @@ namespace scraper
 {
     internal static partial class RssParser
     {
-        public static async Task<List<AlbumInfo>> GetAlbums(string url)
+        public static async Task<List<AlbumInfo>> GetAlbums()
         {
-            const string hrefPattern =
-                "//a[contains(@href, 'photos.app.goo.gl') or contains(@href, 'photos.google.com') or contains(@href, 'goo.gl/photos')]";
-
             Logger.Log("Fetching RSS feed...");
 
-            var list = new List<AlbumInfo>();
-            var seen = new HashSet<string>();
+            var albums = new List<AlbumInfo>();
+            var seenAlbums = new HashSet<string>();
             using HttpClient client = new();
             client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
             
             try
             {
-                XDocument doc = XDocument.Parse(await client.GetStringAsync(url));
-                foreach (var item in doc.Descendants("item"))
+                XDocument rss = XDocument.Parse(await client.GetStringAsync(Settings.RssUrl));
+                foreach (var rssItem in rss.Descendants("item"))
                 {
-                    var htmlDoc = new HtmlDocument();
-                    htmlDoc.LoadHtml(item.Element("description")?.Value ?? "");
-                    HtmlNodeCollection nodes = htmlDoc.DocumentNode.SelectNodes(hrefPattern);
-                    
-                    if (nodes != null)
-                    {
-                        foreach (var link in nodes)
-                        {
-                            string href = link.GetAttributeValue("href", "").Trim();
-                            string text = HtmlEntity.DeEntitize(link.InnerText).Trim();
-                            if (!string.IsNullOrEmpty(href) && !seen.Contains(href))
-                            {
-                                seen.Add(href);
-                                list.Add(new AlbumInfo(text, href));
-                            }
-                        }
-                    }
+                    GetAlbums(albums, seenAlbums, rssItem);
                 }
             }
             catch (Exception ex)
@@ -47,22 +28,46 @@ namespace scraper
                 Logger.Log(ex.Message);
             }
             
-            return list;
+            return albums;
         }
 
-        public static async Task<(string date, string thumb)> GetAlbum(HttpClient client, string url)
+        private static void GetAlbums(List<AlbumInfo> albums, HashSet<string> seen, XElement rssItem)
         {
-            const string titleNodePath = "//meta[@property='og:title']";
-            const string imageNodePath = "//meta[@property='og:image']";
+            const string hrefPattern =
+                "//a[contains(@href, 'photos.app.goo.gl') or contains(@href, 'photos.google.com') or contains(@href, 'goo.gl/photos')]";
+
+            var htmlDoc = new HtmlDocument();
+            htmlDoc.LoadHtml(rssItem.Element("description")?.Value ?? "");
+            HtmlNodeCollection nodes = htmlDoc.DocumentNode.SelectNodes(hrefPattern);
+
+            if (nodes != null)
+            {
+                foreach (var link in nodes)
+                {
+                    string href = link.GetAttributeValue("href", "").Trim();
+                    string text = HtmlEntity.DeEntitize(link.InnerText).Trim();
+                    if (!string.IsNullOrEmpty(href) && !seen.Contains(href))
+                    {
+                        seen.Add(href);
+                        albums.Add(new AlbumInfo(text, href));
+                    }
+                }
+            }
+        }
+
+        public static async Task<(string albumDate, string thumbnailUrl)> GetAlbum(string albumUrl, HttpClient client)
+        {
+            const string titleXmlPath = "//meta[@property='og:title']";
+            const string imageXmlPath = "//meta[@property='og:image']";
 
             try
             {
-                string html = await client.GetStringAsync(url);
+                string html = await client.GetStringAsync(albumUrl);
                 var doc = new HtmlDocument();
                 doc.LoadHtml(html);
 
-                HtmlNode titleNode = doc.DocumentNode.SelectSingleNode(titleNodePath);
-                HtmlNode imageNode = doc.DocumentNode.SelectSingleNode(imageNodePath);
+                HtmlNode titleNode = doc.DocumentNode.SelectSingleNode(titleXmlPath);
+                HtmlNode imageNode = doc.DocumentNode.SelectSingleNode(imageXmlPath);
 
                 string dateStr = GetDate(titleNode);
                 string thumb = imageNode?.GetAttributeValue("content", "") ?? "";

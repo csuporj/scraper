@@ -2,7 +2,7 @@
 {
     internal class MissingAlbumInfoHandler
     {
-        public static async Task FillMissingInfo(List<AlbumInfo> mergedAlbums)
+        public static async Task FillInfo(List<AlbumInfo> mergedAlbums)
         {
             const string userAgent =
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
@@ -20,12 +20,12 @@
 
             foreach (var item in missingAlbums)
             {
-                var (date, thumbUrl) = await RssParser.GetAlbum(client, item.AlbumUrl);
-                await FillMissingInfo(item, date, thumbUrl, client);
+                var (date, thumbUrl) = await RssParser.GetAlbum(item.AlbumUrl, client);
+                await FillInfo(item, date, thumbUrl, client);
             }
         }
 
-        private static async Task FillMissingInfo(AlbumInfo album, string date, string thumbUrl, HttpClient client)
+        private static async Task FillInfo(AlbumInfo album, string date, string thumbUrl, HttpClient client)
         {
             album.AlbumDate = date;
             album.ThumbnailUrl = thumbUrl;
@@ -33,7 +33,7 @@
             if (!string.IsNullOrEmpty(thumbUrl))
             {
                 string fileName = $"thumb_{Guid.NewGuid():N}.jpg";
-                string fullPath = Path.Combine(Settings.ThumbFolder, fileName);
+                string fullPath = Path.Combine(Settings.ThumbnailsFolder, fileName);
                 try
                 {
                     var bytes = await client.GetByteArrayAsync(thumbUrl);
@@ -43,7 +43,7 @@
                 catch (Exception ex)
                 {
                     Logger.Log(ex.Message);
-                    Logger.Log($"Failed thumb download: {album.LinkText}");
+                    Logger.Log($"Failed thumbnail download: {album.LinkText}");
                 }
             }
 

@@ -4,14 +4,14 @@ namespace scraper
 {
     internal static class JsonHandler
     {
-        public static List<AlbumInfo> Read(string jsonPath)
+        public static List<AlbumInfo> Read()
         {
-            if (File.Exists(jsonPath))
+            if (File.Exists(Settings.JsonPath))
             {
                 try
                 {
                     return JsonConvert.DeserializeObject<List<AlbumInfo>>(
-                        File.ReadAllText(jsonPath)) ?? [];
+                        File.ReadAllText(Settings.JsonPath)) ?? [];
                 }
                 catch (Exception ex)
                 {
