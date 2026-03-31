@@ -16,16 +16,16 @@ namespace scraper
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
-                    Console.WriteLine("Existing JSON not found or invalid. Starting fresh.");
                 }
             }
 
+            Console.WriteLine("Existing JSON not found or invalid. Starting fresh.");
             return [];
         }
 
-        public static async Task WriteJson(List<AlbumInfo> mergedAlbums)
+        public static void WriteJson(List<AlbumInfo> mergedAlbums)
         {
-            await File.WriteAllTextAsync(
+            File.WriteAllText(
                 Settings.JsonPath,
                 JsonConvert.SerializeObject(mergedAlbums, Formatting.Indented));
         }
