@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-
-namespace scraper
+﻿namespace scraper
 {
     internal partial class Program
     {
@@ -11,8 +9,8 @@ namespace scraper
 
             Directory.CreateDirectory(Settings.ThumbFolder);
             List<AlbumInfo> rssAlbums = await RssParser.GetAlbumsFromRss(Settings.RssUrl);
-            Dictionary<string, AlbumInfo> jsonAlbums = ReadJson(Settings.JsonPath);
-            List<AlbumInfo> mergedAlbums = MergeRssWithJson(rssAlbums, jsonAlbums);
+            List<AlbumInfo> jsonAlbums = JsonHandler.ReadJson(Settings.JsonPath);
+            List<AlbumInfo> mergedAlbums = Merger.MergeRssWithJson(rssAlbums, jsonAlbums);
 
             var missingAlbums = mergedAlbums
                .Where(a => string.IsNullOrEmpty(a.ThumbnailUrl) || a.AlbumDate == AlbumInfo.NotScraped)
@@ -54,51 +52,8 @@ namespace scraper
                 }
             }
 
-            await File.WriteAllTextAsync(
-                Settings.JsonPath,
-                JsonConvert.SerializeObject(mergedAlbums, Formatting.Indented));
+            await JsonHandler.WriteJson(mergedAlbums);
             Console.WriteLine($"Process finished. Total albums in list: {mergedAlbums.Count}");
-        }
-
-        private static Dictionary<string, AlbumInfo> ReadJson(string jsonPath)
-        {
-            var localCache = new Dictionary<string, AlbumInfo>();
-            if (File.Exists(jsonPath))
-            {
-                try
-                {
-                    var json = File.ReadAllText(jsonPath);
-                    var albums = JsonConvert.DeserializeObject<AlbumInfo[]>(json);
-                    if (albums != null)
-                        localCache = albums.ToDictionary(a => a.AlbumUrl, a => a);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Existing JSON not found or invalid. Starting fresh.");
-                }
-            }
-
-            return localCache;
-        }
-
-        private static List<AlbumInfo> MergeRssWithJson(List<AlbumInfo> rssList, Dictionary<string, AlbumInfo> localList)
-        {
-            var mergedList = new List<AlbumInfo>();
-            foreach (var rssAlbum in rssList)
-            {
-                if (localList.TryGetValue(rssAlbum.AlbumUrl, out var localAlbum))
-                {
-                    localAlbum.LinkText = rssAlbum.LinkText;
-                    mergedList.Add(localAlbum);
-                }
-                else
-                {
-                    mergedList.Add(rssAlbum);
-                }
-            }
-
-            return mergedList;
         }
     }
 }
