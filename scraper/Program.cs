@@ -12,7 +12,7 @@ public class AlbumInfo(string linkText, string albumUrl)
     public string LocalThumbnailPath { get; set; } = "";
 }
 
-public class Program
+public partial class Program
 {
     private const string RssUrl = "https://csuporj.blogspot.com/feeds/posts/default?alt=rss&max-results=500";
     private const string JsonPath = "albums.json";
@@ -142,11 +142,7 @@ public class Program
     private static async Task<(string date, string thumb)> GetAlbumMetadata(HttpClient client, string url)
     {
         const string imageNodePath = "//meta[@property='og:image']";
-        const string titleNodePath = "//meta[@property='og:title']";
-        const string yearPattern = @"\b\d{4}\b";
-        const string monthDayPattern = @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b";
-        const string monthDayYearPattern = @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b";
-        
+        const string titleNodePath = "//meta[@property='og:title']";        
         
         try
         {
@@ -154,26 +150,47 @@ public class Program
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
 
-            string thumb = doc.DocumentNode.SelectSingleNode(imageNodePath)?.GetAttributeValue("content", "") ?? "";
-            string dateStr = "Date Not Found";
+            HtmlNode imageNode = doc.DocumentNode.SelectSingleNode(imageNodePath);
 
-            if (doc.DocumentNode.SelectSingleNode(titleNodePath) is { } node)
-            {
-                string content = node.GetAttributeValue("content", "");
-                var match = Regex.Match(content, monthDayPattern, RegexOptions.IgnoreCase);
-                if (match.Success)
-                {
-                    dateStr = match.Value;
-                    if (!Regex.IsMatch(content, yearPattern)) dateStr += $", {DateTime.Now.Year}";
-                    else
-                    {
-                        var full = Regex.Match(content, monthDayYearPattern, RegexOptions.IgnoreCase);
-                        if (full.Success) dateStr = full.Value;
-                    }
-                }
-            }
+            string thumb = imageNode?.GetAttributeValue("content", "") ?? "";
+            HtmlNode titleNode = doc.DocumentNode.SelectSingleNode(titleNodePath);
+
+            string dateStr = GetDateFromTitle(titleNode);
             return (dateStr, thumb);
         }
         catch { return ("Error", ""); }
     }
+
+    private static string GetDateFromTitle(HtmlNode titleNode)
+    {
+        const string dateNotFound = "Date not found";
+
+        if (titleNode == null)
+        {
+            return dateNotFound;
+        }
+
+        string title = titleNode.GetAttributeValue("content", "");
+
+        var mdyMatch = MonthDayYearRegex().Match(title);
+        if (mdyMatch.Success)
+        {
+            return mdyMatch.Value;
+        }
+
+        var mdMatch = MonthDayRegex().Match(title);
+        if (mdMatch.Success)
+        {
+            return  $"{mdMatch.Value}, {DateTime.Now.Year}";
+        }
+
+        return dateNotFound;
+    }
+
+    [GeneratedRegex(@"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex MonthDayYearRegex();
+
+    [GeneratedRegex(@"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex MonthDayRegex();
+    
 }
