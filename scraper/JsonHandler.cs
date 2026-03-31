@@ -4,7 +4,7 @@ namespace scraper
 {
     internal static class JsonHandler
     {
-        public static List<AlbumInfo> ReadJson(string jsonPath)
+        public static List<AlbumInfo> Read(string jsonPath)
         {
             if (File.Exists(jsonPath))
             {
@@ -15,15 +15,15 @@ namespace scraper
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    Logger.Log(ex.Message);
                 }
             }
 
-            Console.WriteLine("Existing JSON not found or invalid. Starting fresh.");
+            Logger.Log("Existing JSON not found or invalid. Starting fresh.");
             return [];
         }
 
-        public static void WriteJson(List<AlbumInfo> mergedAlbums)
+        public static void Write(IEnumerable<AlbumInfo> mergedAlbums)
         {
             File.WriteAllText(
                 Settings.JsonPath,

@@ -5,13 +5,13 @@
         private static async Task Main()
         {
             Directory.CreateDirectory(Settings.ThumbFolder);
-            List<AlbumInfo> rssAlbums = await RssParser.GetAlbumsFromRss(Settings.RssUrl);
-            List<AlbumInfo> jsonAlbums = JsonHandler.ReadJson(Settings.JsonPath);
-            List<AlbumInfo> mergedAlbums = Merger.MergeRssWithJson(rssAlbums, jsonAlbums);
+            List<AlbumInfo> rss = await RssParser.GetAlbums(Settings.RssUrl);
+            List<AlbumInfo> json = JsonHandler.Read(Settings.JsonPath);
+            List<AlbumInfo> merged = Merger.Merge(rss, json);
 
-            await MissingAlbumsHandler.AddMissingAlbums(mergedAlbums);
-            JsonHandler.WriteJson(mergedAlbums);
-            Console.WriteLine($"Process finished. Total albums in list: {mergedAlbums.Count}");
+            await MissingAlbumInfoHandler.FillMissingInfo(merged);
+            JsonHandler.Write(merged);
+            Logger.Log($"Process finished. Total albums in list: {merged.Count}");
         }
     }
 }

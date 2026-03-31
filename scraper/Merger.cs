@@ -2,7 +2,7 @@
 {
     internal static class Merger
     {
-        public static List<AlbumInfo> MergeRssWithJson(List<AlbumInfo> rssAlbums, List<AlbumInfo> jsonAlbums)
+        public static List<AlbumInfo> Merge(List<AlbumInfo> rssAlbums, List<AlbumInfo> jsonAlbums)
         {
             return [.. rssAlbums.LeftJoin(jsonAlbums, r => r.AlbumUrl, j => j.AlbumUrl, Merge)];
         }

@@ -6,6 +6,5 @@
         public const string JsonPath = "albums.json";
         public const string ThumbFolder = "thumbnails";
         public const int BatchSize = 5;
-        public const int DelayBetweenRequestsMs = 200;
     }
 }

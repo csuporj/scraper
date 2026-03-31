@@ -6,12 +6,12 @@ namespace scraper
 {
     internal static partial class RssParser
     {
-        public static async Task<List<AlbumInfo>> GetAlbumsFromRss(string url)
+        public static async Task<List<AlbumInfo>> GetAlbums(string url)
         {
             const string hrefPattern =
                 "//a[contains(@href, 'photos.app.goo.gl') or contains(@href, 'photos.google.com') or contains(@href, 'goo.gl/photos')]";
 
-            Console.WriteLine("Fetching RSS feed...");
+            Logger.Log("Fetching RSS feed...");
 
             var list = new List<AlbumInfo>();
             var seen = new HashSet<string>();
@@ -44,13 +44,13 @@ namespace scraper
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Logger.Log(ex.Message);
             }
             
             return list;
         }
 
-        public static async Task<(string date, string thumb)> GetAlbumMetadata(HttpClient client, string url)
+        public static async Task<(string date, string thumb)> GetAlbum(HttpClient client, string url)
         {
             const string titleNodePath = "//meta[@property='og:title']";
             const string imageNodePath = "//meta[@property='og:image']";
@@ -64,19 +64,19 @@ namespace scraper
                 HtmlNode titleNode = doc.DocumentNode.SelectSingleNode(titleNodePath);
                 HtmlNode imageNode = doc.DocumentNode.SelectSingleNode(imageNodePath);
 
-                string dateStr = GetDateFromTitle(titleNode);
+                string dateStr = GetDate(titleNode);
                 string thumb = imageNode?.GetAttributeValue("content", "") ?? "";
 
                 return (dateStr, thumb);
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Logger.Log(ex.Message);
                 return ("Error", "");
             }
         }
 
-        private static string GetDateFromTitle(HtmlNode titleNode)
+        private static string GetDate(HtmlNode titleNode)
         {
             const string dateNotFound = "Date not found";
 
