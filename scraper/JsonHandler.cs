@@ -6,12 +6,12 @@ namespace scraper
     {
         public static List<AlbumInfo> Read()
         {
-            if (File.Exists(Settings.JsonPath))
+            if (File.Exists(Settings.JsonFileName))
             {
                 try
                 {
                     return JsonConvert.DeserializeObject<List<AlbumInfo>>(
-                        File.ReadAllText(Settings.JsonPath)) ?? [];
+                        File.ReadAllText(Settings.JsonFileName)) ?? [];
                 }
                 catch (Exception ex)
                 {
@@ -26,7 +26,7 @@ namespace scraper
         public static void Write(IEnumerable<AlbumInfo> mergedAlbums)
         {
             File.WriteAllText(
-                Settings.JsonPath,
+                Settings.JsonFileName,
                 JsonConvert.SerializeObject(mergedAlbums, Formatting.Indented));
         }
     }
