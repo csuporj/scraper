@@ -15,6 +15,6 @@ namespace scraper
         [JsonIgnore]
         public string ThumbnailUrl { get; set; } = "";
 
-        public string LocalThumbnailPath { get; set; } = "";
+        public string ThumbnailFileName { get; set; } = "";
     }
 }

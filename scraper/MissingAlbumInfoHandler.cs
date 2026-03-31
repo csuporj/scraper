@@ -38,7 +38,7 @@
                 {
                     byte[] bytes = await client.GetByteArrayAsync(thumbnailUrl);
                     await File.WriteAllBytesAsync(fullPath, bytes);
-                    album.LocalThumbnailPath = fullPath;
+                    album.ThumbnailFileName = fileName;
                 }
                 catch (Exception ex)
                 {
@@ -53,7 +53,7 @@
         private static List<AlbumInfo> GetMissingAlbums(List<AlbumInfo> mergedAlbums)
         {
             return [.. mergedAlbums
-                .Where(a => string.IsNullOrEmpty(a.ThumbnailUrl) || a.AlbumDate == AlbumInfo.NotScraped)
+                .Where(a => string.IsNullOrEmpty(a.ThumbnailFileName) || a.AlbumDate == AlbumInfo.NotScraped)
                .Take(Settings.BatchSize)];
         }
     }

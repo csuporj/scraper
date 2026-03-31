@@ -12,7 +12,7 @@
             if (json != null)
             {
                 merged.AlbumDate = json.AlbumDate;
-                merged.LocalThumbnailPath = json.LocalThumbnailPath;
+                merged.ThumbnailFileName = json.ThumbnailFileName;
             }
 
             return merged;
