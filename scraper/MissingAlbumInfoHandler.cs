@@ -21,8 +21,22 @@
             foreach (AlbumInfo item in missingAlbums)
             {
                 (string? date, string? thumbnailUrl) = await RssParser.GetAlbum(item.AlbumUrl, client);
+                thumbnailUrl = AdjustQuality(thumbnailUrl);
                 await FillInfo(item, date, thumbnailUrl, client);
             }
+        }
+
+        private static string AdjustQuality(string thumbnailUrl)
+        {
+            int equals = thumbnailUrl.LastIndexOf('=');
+            
+            if (equals > 0)
+            {
+                string fixedPart = thumbnailUrl[..(equals + 1)];
+                thumbnailUrl = fixedPart + Settings.ThumbnailQuality;
+            }
+            
+            return thumbnailUrl;
         }
 
         private static async Task FillInfo(AlbumInfo album, string date, string thumbnailUrl, HttpClient client)
