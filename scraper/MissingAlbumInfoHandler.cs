@@ -20,7 +20,7 @@
 
             foreach (AlbumInfo item in missingAlbums)
             {
-                (string? date, string? thumbnailUrl) = await RssParser.GetAlbum(item.AlbumUrl, client);
+                (string? date, string? thumbnailUrl) = await GooglePhotosParser.GetAlbum(item.AlbumUrl, client);
                 thumbnailUrl = AdjustQuality(thumbnailUrl);
                 await FillInfo(item, date, thumbnailUrl, client);
             }
