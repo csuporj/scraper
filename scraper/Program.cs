@@ -8,9 +8,9 @@
             List<AlbumInfo> rss = await RssParser.GetAlbums();
             List<AlbumInfo> json = JsonHandler.Read();
             List<AlbumInfo> merged = Merger.Merge(rss, json);
-
             await MissingAlbumInfoHandler.FillInfo(merged);
             JsonHandler.Write(merged);
+            
             Logger.Log("Process finished. Total albums in list: " + merged.Count);
         }
     }

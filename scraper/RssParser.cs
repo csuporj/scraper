@@ -1,5 +1,4 @@
 ﻿using HtmlAgilityPack;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace scraper
@@ -8,12 +7,13 @@ namespace scraper
     {
         public static async Task<List<AlbumInfo>> GetAlbums()
         {
+            const string userAgent = "Mozilla/5.0";
+            
             Logger.Log("Fetching RSS feed...");
-
             List<AlbumInfo> albums = [];
             HashSet<string> seenAlbums = [];
             using HttpClient client = new();
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
 
             try
             {

@@ -6,8 +6,8 @@
         {
             const string userAgent =
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
-            List<AlbumInfo> missingAlbums = GetMissingAlbums(mergedAlbums);
 
+            List<AlbumInfo> missingAlbums = SelectMissingAlbums(mergedAlbums);
             // todo if count is zero, get the topmost 5 albums by date and refresh their text, date and thumbnails
             if (missingAlbums.Count == 0)
             {
@@ -64,7 +64,7 @@
             Logger.Log($"Updated: {album.LinkText} -> {date}");
         }
 
-        private static List<AlbumInfo> GetMissingAlbums(List<AlbumInfo> mergedAlbums)
+        private static List<AlbumInfo> SelectMissingAlbums(List<AlbumInfo> mergedAlbums)
         {
             return [.. mergedAlbums
                 .Where(a => string.IsNullOrEmpty(a.ThumbnailFileName))
