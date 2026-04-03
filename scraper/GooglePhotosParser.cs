@@ -48,10 +48,13 @@ namespace scraper
                 return mdyMatch.Value;
             }
 
+            Match yMatch = YearRegex().Match(title);
+            string year = yMatch.Success ? yMatch.Value : DateTime.Now.Year.ToString();
+
             Match mdMatch = MonthDayRegex().Match(title);
             if (mdMatch.Success)
             {
-                return $"{mdMatch.Value}, {DateTime.Now.Year}";
+                return $"{mdMatch.Value}, {year}";
             }
 
             return dateNotFound;
@@ -60,7 +63,11 @@ namespace scraper
         [GeneratedRegex(@"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b", RegexOptions.IgnoreCase, "en-US")]
         private static partial Regex MonthDayYearRegex();
 
+        [GeneratedRegex(@"\b\d{4}\b", RegexOptions.IgnoreCase, "en-US")]
+        private static partial Regex YearRegex();
+
         [GeneratedRegex(@"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b", RegexOptions.IgnoreCase, "en-US")]
         private static partial Regex MonthDayRegex();
+
     }
 }

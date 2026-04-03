@@ -10,6 +10,7 @@ namespace scraper
             const string userAgent = "Mozilla/5.0";
             
             Logger.Log("Fetching RSS feed...");
+            Console.WriteLine();
             List<AlbumInfo> albums = [];
             HashSet<string> seenAlbums = [];
             using HttpClient client = new();
@@ -46,7 +47,7 @@ namespace scraper
                 {
                     string href = link.GetAttributeValue("href", "").Trim();
                     string text = HtmlEntity.DeEntitize(link.InnerText).Trim();
-                    if (!string.IsNullOrEmpty(href) && !seen.Contains(href))
+                    if (!string.IsNullOrWhiteSpace(href) && !seen.Contains(href))
                     {
                         seen.Add(href);
                         albums.Add(new AlbumInfo(text, href));

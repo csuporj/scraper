@@ -5,8 +5,9 @@
         private static async Task Main()
         {
             Directory.CreateDirectory(Settings.ThumbnailsFolder);
-            List<AlbumInfo> rss = await RssParser.GetAlbums();
             List<AlbumInfo> json = JsonHandler.Read();
+            await Cleaner.Cleanup(json);
+            List<AlbumInfo> rss = await RssParser.GetAlbums();
             List<AlbumInfo> merged = Merger.Merge(rss, json);
             await MissingAlbumInfoHandler.FillInfo(merged);
             JsonHandler.Write(merged);

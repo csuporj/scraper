@@ -46,21 +46,15 @@
             album.AlbumDate = date;
             album.ThumbnailUrl = thumbnailUrl;
 
-            if (!string.IsNullOrEmpty(thumbnailUrl))
+            try
             {
-                string fileName = $"thumb_{Guid.NewGuid():N}.jpg";
-                string fullPath = Path.Combine(Settings.ThumbnailsFolder, fileName);
-                try
-                {
-                    byte[] bytes = await client.GetByteArrayAsync(thumbnailUrl);
-                    await File.WriteAllBytesAsync(fullPath, bytes);
-                    album.ThumbnailFileName = fileName;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log(ex.Message);
-                    Logger.Log($"Failed thumbnail download: {album.LinkText}");
-                }
+                album.ThumbnailFileName = await ThumbnailJpgHandler.Download(thumbnailUrl, client);
+            }
+            catch (Exception ex)
+            {
+                album.ThumbnailFileName = "";
+                Logger.Log(ex.Message);
+                Logger.Log($"Failed thumbnail download: {album.LinkText}");
             }
 
             Logger.Log($"Updated: {album.LinkText} -> {date}");
@@ -69,7 +63,7 @@
         private static List<AlbumInfo> SelectMissingAlbums(List<AlbumInfo> mergedAlbums)
         {
             return [.. mergedAlbums
-                .Where(a => string.IsNullOrEmpty(a.ThumbnailFileName))
+                .Where(a => string.IsNullOrWhiteSpace(a.ThumbnailFileName))
                .Take(Settings.BatchSize)];
         }
     }
