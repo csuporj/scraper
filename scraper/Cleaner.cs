@@ -11,15 +11,17 @@
         public static void CleanupOrphanedJpgs(List<AlbumInfo> albums)
         {
             Logger.Log("Cleaning thumbnails...");
-            HashSet<string> jsonThumbnailFileNames = albums.Select(a => a.ThumbnailFileName.Trim()).ToHashSet();
-            string[] relativePathsOnDisk = ThumbnailJpgHandler.GetThumbnailFilesFromDisk();
-            foreach (var relativePath in relativePathsOnDisk)
+            
+            HashSet<string> jsonFileNames = [.. albums.Select(a => a.ThumbnailFileName.Trim())];
+            string[] diskRelativePaths = ThumbnailJpgHandler.GetThumbnailFilesFromDisk();
+            
+            foreach (var diskPath in diskRelativePaths)
             {
-                var fileName = Path.GetFileName(relativePath).Trim();
-                if (!jsonThumbnailFileNames.Contains(fileName))
+                var diskFileName = Path.GetFileName(diskPath).Trim();
+                if (!jsonFileNames.Contains(diskFileName))
                 {
-                    File.Delete(relativePath);
-                    Logger.Log($"Deleted: {fileName}");
+                    File.Delete(diskPath);
+                    Logger.Log($"Deleted: {diskFileName}");
                 }
             }
         }
