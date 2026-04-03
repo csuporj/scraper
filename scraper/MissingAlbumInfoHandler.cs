@@ -9,8 +9,7 @@
 
             List<AlbumInfo> missingAlbums = SelectMissingAlbums(mergedAlbums);
             // todo if count is zero, get the topmost 5 albums by date and refresh their text, date and thumbnails
-            // Until then a workaround is to checkout the gallery repo, delete the thumbnail jpg file,
-            // empty ThumbnailFileName in albums.json, and commit the change.
+            // Until then the workaround is to checkout the gallery repo, set ThumbnailFileName to "" in albums.json, and commit the change.
             if (missingAlbums.Count == 0)
             {
                 return;
