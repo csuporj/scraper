@@ -7,6 +7,6 @@
         public const string JsonFileName = "albums.json";
         public static readonly string ThumbnailsFolder = $"public{Path.DirectorySeparatorChar}thumbnails";
         public const string ThumbnailQuality = "w1200-h800-p-k-no";
-        public const int BatchSize = 3;
+        public const int BatchSize = 100;
     }
 }
