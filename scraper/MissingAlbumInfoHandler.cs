@@ -1,6 +1,6 @@
 ﻿namespace scraper
 {
-    internal class MissingAlbumInfoHandler
+    internal static class MissingAlbumInfoHandler
     {
         public static async Task FillInfo(List<AlbumInfo> mergedAlbums)
         {
@@ -30,13 +30,13 @@
         private static string AdjustQuality(string thumbnailUrl)
         {
             int equals = thumbnailUrl.LastIndexOf('=');
-            
+
             if (equals > 0)
             {
                 string fixedPart = thumbnailUrl[..(equals + 1)];
                 thumbnailUrl = fixedPart + Settings.ThumbnailQuality;
             }
-            
+
             return thumbnailUrl;
         }
 

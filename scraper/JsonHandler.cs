@@ -4,14 +4,18 @@ namespace scraper
 {
     internal static class JsonHandler
     {
+        public static string GetPath() =>
+            Path.GetFullPath(Path.Combine(Settings.JsonFolder, Settings.JsonFileName));
+
         public static List<AlbumInfo> Read()
         {
-            if (File.Exists(Settings.JsonFileName))
+            var path = GetPath();
+            if (File.Exists(path))
             {
                 try
                 {
                     return JsonConvert.DeserializeObject<List<AlbumInfo>>(
-                        File.ReadAllText(Settings.JsonFileName)) ?? [];
+                        File.ReadAllText(path)) ?? [];
                 }
                 catch (Exception ex)
                 {
@@ -26,7 +30,7 @@ namespace scraper
         public static void Write(IEnumerable<AlbumInfo> mergedAlbums)
         {
             File.WriteAllText(
-                Settings.JsonFileName,
+                GetPath(),
                 JsonConvert.SerializeObject(mergedAlbums, Formatting.Indented));
         }
     }

@@ -1,9 +1,10 @@
 ﻿namespace scraper
 {
-    internal partial class Program
+    internal static partial class Program
     {
         private static async Task Main()
         {
+            Directory.CreateDirectory(Settings.JsonFolder);
             Directory.CreateDirectory(Settings.ThumbnailsFolder);
             List<AlbumInfo> json = JsonHandler.Read();
             await Cleaner.Cleanup(json);

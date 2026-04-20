@@ -1,6 +1,6 @@
 ﻿namespace scraper
 {
-    internal class ThumbnailJpgHandler
+    internal static class ThumbnailJpgHandler
     {
         /// <summary>
         /// Downloads the thumbnail and returns the thumbnail file name.
@@ -11,19 +11,19 @@
             {
                 return "";
             }
-            
+
             string fileName = $"thumb_{Guid.NewGuid():N}.jpg";
-            string relativePath = GetRelativePath(fileName);
+            string path = GetPath(fileName);
             byte[] bytes = await client.GetByteArrayAsync(thumbnailUrl);
-            await File.WriteAllBytesAsync(relativePath, bytes);
-            
+            await File.WriteAllBytesAsync(path, bytes);
+
             return fileName;
         }
 
-        public static string GetRelativePath(string thumbnailFileName) =>
-            Path.Combine(Settings.ThumbnailsFolder, thumbnailFileName);
+        public static string GetPath(string thumbnailFileName) =>
+            Path.GetFullPath(Path.Combine(Settings.ThumbnailsFolder, thumbnailFileName));
 
         public static string[] GetThumbnailFilesFromDisk() =>
-            Directory.GetFiles("thumbnails", "thumb_*.jpg");
+            Directory.GetFiles(Settings.ThumbnailsFolder, "thumb_*.jpg");
     }
 }

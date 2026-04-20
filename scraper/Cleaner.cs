@@ -33,7 +33,7 @@
             {
                 if (!string.IsNullOrWhiteSpace(album.ThumbnailFileName))
                 {
-                    var path = ThumbnailJpgHandler.GetRelativePath(album.ThumbnailFileName);
+                    var path = ThumbnailJpgHandler.GetPath(album.ThumbnailFileName);
                     if (!File.Exists(path))
                     {
                         string oldName = album.ThumbnailFileName;
